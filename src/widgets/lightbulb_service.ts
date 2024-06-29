@@ -4,7 +4,7 @@ import { defaultCredentialsManager } from "neuroglancer/unstable/credentials_pro
 import { makeIcon } from 'neuroglancer/unstable/widget/icon.js';
 // import {vec3} from 'neuroglancer/unstable/util/geom.js';
 import JSONbigInt from 'json-bigint';
-import {Uint64} from 'neuroglancer/unstable/util/uint64.js';
+// import {Uint64} from 'neuroglancer/unstable/util/uint64.js';
 // import {Position} from 'neuroglancer/unstable/navigation_state.js'
 
 
