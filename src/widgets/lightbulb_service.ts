@@ -2,9 +2,7 @@ import { ContextMenu } from 'neuroglancer/unstable/ui/context_menu.js';
 import { cancellableFetchSpecialOk, parseSpecialUrl } from 'neuroglancer/unstable/util/special_protocol_request.js';
 import { defaultCredentialsManager } from "neuroglancer/unstable/credentials_provider/default_manager.js";
 import { makeIcon } from 'neuroglancer/unstable/widget/icon.js';
-// import {vec3} from 'neuroglancer/unstable/util/geom.js';
 import JSONbigInt from 'json-bigint';
-// import {Position} from 'neuroglancer/unstable/navigation_state.js'
 
 
 import './bulb.css';
@@ -20,33 +18,22 @@ function responseJsonString(response: Response): Promise<any> {
   return response.text()
 }
 
-// https://cave.fanc-fly.com/neurons/api/v1/datastack/brain_and_nerve_cord/info
-
-// {"cell_identification":true,"proofreading_status":true}
-
-//https://global.daf-apis.com/info/api/v2/ngl_info
-
-//cave.fancy-fly.com/ +neurons/api/v1/datastack      name = brain and nerve cord
-
-// https://cave.fanc-fly.com/neurons/api/v1/datastack/brain_and_nerve_cord/
-
 
 export class LightBulbService {
 
   timeout = 0;
   checkTime = 120000;
-  //'graphene://middleauth+https://cave.fanc-fly.com/segmentation/table/wclee_fly_cns_001'
-  dataset_url = ""//= "https://cave.fanc-fly.com/neurons/api/v1/datastack/brain_and_nerve_cord/";
-  // dataset_url = "https://cave.fanc-fly.com/neurons/api/v1/datastack/brain_and_nerve_cord/";
+  dataset_url = "" //this is a placeholder value since the url is not known until after the service is created
   viewer : Viewer;
   statuses: {
     [key: string]: {
       sid: string; //root id
       element: HTMLElement; //svg image
       button: HTMLButtonElement; //button containing element with svg image
-      menu: ContextMenu | null;
-      identification_menu: ContextMenu | null;
-      proofreading_menu: ContextMenu | null; //maybe revert to a single meny for the whole class?
+      menu: ContextMenu | null; //meny for the item
+      identification_menu: ContextMenu | null; //corresponding menu for its cell identification
+      proofreading_menu: ContextMenu | null; //corresponding menu for its cell proofreading
+      //status types:
       //error: something is wrong
       //noinfo: neither proofread or identified
       //outdated: placeholder or not proofread or identified
@@ -59,8 +46,8 @@ export class LightBulbService {
 
   constructor(viewer : Viewer, segmentation_name : string) {
     this.viewer = viewer;
+    //query for the service url
     (async () =>  {
-      // this.dataset_url = this.getDatasetURL(segmentation_name);
       const name = await this.getDatasetName(segmentation_name);
       this.dataset_url = "https://cave.fanc-fly.com/neurons/api/v1/datastack/" + name + "/";
       
@@ -68,6 +55,7 @@ export class LightBulbService {
     })();
   }
 
+  //given the name of the dataset, returns a part of the url necissary to use the service
   async findDatasetURL(dataset_name : string) : Promise<string>{
 
     const dataset_name_query_url = "https://global.daf-apis.com/info/api/v2/ngl_info";
@@ -82,6 +70,8 @@ export class LightBulbService {
   
   }
 
+  //gets the name of the dataset from which the url can be found
+  //at the moment is either fanc or banc
   async getDatasetName(segmentation_name : string) : Promise<string>{
     const json_query_url = "https://global.daf-apis.com/sticky_auth/api/v1/service/pychunkedgraph/table/" + segmentation_name + "/dataset?middle_auth_url=global.daf-apis.com%2Fsticky_auth";
 
@@ -94,11 +84,15 @@ export class LightBulbService {
     return this.findDatasetURL(dataset_name)
   }
 
+  //go through all saved nodes, check if proofreading/identification status has changed
+  //if yes then label them for a new color
   checkNodeStatuses(): void {
     if(this.dataset_url === "") {
+      //cannot run until has a url to query
       return;
     }
 
+    //create string containing comma seperated segment ids
     var sidstring = "";
     Object.values(this.statuses).forEach((segments) => {
       const {sid} = segments;
@@ -113,6 +107,7 @@ export class LightBulbService {
 
     (async () => { //proofreading status
 
+      //if proofreading service exists, send query and mark nodes based on response
       if(!await(this.checkServiceExists("proofreading_status"))) {
         return;
       }
@@ -163,11 +158,13 @@ export class LightBulbService {
           this.statuses[sid]["status"] = "noinfo";
         }
       });
+      
       this.colorBulbs();
     })();
 
     (async () => { //cell identification status
 
+      //if identification service exists, send query and mark nodes based on response
       if(!await(this.checkServiceExists("cell_identification"))) {
         return;
       }
@@ -225,6 +222,7 @@ export class LightBulbService {
     this.checkTimeout();
   }
 
+  //set color of bulb based on segment status
   colorBulbs() {
     Object.values(this.statuses).forEach((segments) => {
       //for each root id that is selected, color it's bulb based on its status
@@ -248,15 +246,13 @@ export class LightBulbService {
         case 'noinfo':
           this.statuses[sid]["element"].className = "neuroglancer-icon bulb gray";
           break;
-        //TODO??? case unselected
       }
       
     });
   }
 
-  
+  //return true if service exists
   async checkServiceExists(service_name : string) : Promise<boolean> {
-    // return true;
     const {url: parsedUrl, credentialsProvider} = parseSpecialUrl(
       'middleauth+'+ this.dataset_url +'info',
       defaultCredentialsManager,
@@ -265,17 +261,18 @@ export class LightBulbService {
     return JSONBS.parse(await(cancellableFetchSpecialOk(credentialsProvider,parsedUrl,{},responseJsonString)))[service_name];
   }
 
-  async getFromInfoJson(information_json_link : string) : Promise<string> {
+  //read a field from the service's info
+  async getFromInfoJson(json_query : string) : Promise<string> {
 
     const {url: parsedUrl, credentialsProvider} = parseSpecialUrl(
       'middleauth+'+ this.dataset_url +'info',
       defaultCredentialsManager,
     );
 
-    return JSONBS.parse(await(cancellableFetchSpecialOk(credentialsProvider, parsedUrl, {}, responseJsonString)))[information_json_link];
+    return JSONBS.parse(await(cancellableFetchSpecialOk(credentialsProvider, parsedUrl, {}, responseJsonString)))[json_query];
   }
 
-
+  //checks node statuses for new info after time delay
   checkTimeout(time: number = this.checkTime) {
     clearTimeout(this.timeout);
     const boundCheck = this.checkNodeStatuses.bind(this);
@@ -287,11 +284,8 @@ export class LightBulbService {
   }
 
 
+  //create lighbulb button gui element, save it in relation to segment id
   createButton(segmentIDString: string): HTMLButtonElement {
-
-        
-    // const pos = new Position("a");
-
     //don't recreate existing buttons
     if(segmentIDString in this.statuses) {
       return this.statuses[segmentIDString]["button"]
@@ -312,13 +306,12 @@ export class LightBulbService {
     let iconElement: HTMLElement;
     iconElement = makeIcon({svg: lightbulb_base_svg});
     iconElement.className = "neuroglancer-icon bulb";
-    //fix svg icon to allow for css based styling
+
     (iconElement.firstElementChild as SVGElement).style.fill = "unset";
     bulb.appendChild(iconElement);
 
     //add event listner :)
     bulb.addEventListener('click', (event: MouseEvent) => {
-      // TODO: Make sure we destroy the menu as well
       let menu = this.makeMenu(bulb, segmentIDString)
       menu.show(
           <MouseEvent>{clientX: event.clientX - 200, clientY: event.clientY}
@@ -334,6 +327,7 @@ export class LightBulbService {
     return bulb;
   };
 
+  // generated labels and text content of the pop up menu that appears when the bulb is pressed
   generateSection(sectionTitle : string, segmentIDString : string, queryURL: string, parseJson : Function) : HTMLDivElement{
     const popup_body = document.createElement('div');
     const title_div = document.createElement('div');
@@ -342,6 +336,7 @@ export class LightBulbService {
     const content_body = document.createElement('div');
     content_body.className = "neuroglancer-layer-group-viewer-context-menu-body-element";
 
+    //query for proofreading/identification status to include in the menu
     (async () => {
         const {url: parsedUrl, credentialsProvider} = parseSpecialUrl(
             queryURL + segmentIDString,
@@ -355,8 +350,7 @@ export class LightBulbService {
     return popup_body;
   }
 
-  // dataset_url/mark_completion?location=500,500,700&valid_id=123455
-
+  //generate button to open submission menus
   generateButtonLink(parent : HTMLElement,segmentIDString : string, menuType : string, makeMenuSections : Function, makeSubmitableContent : Function, buttonMessage : string, color: string) : HTMLDivElement {
     const button_holder = document.createElement('div');
     const button_link = document.createElement('button');
@@ -364,36 +358,24 @@ export class LightBulbService {
     button_link.style.backgroundColor = color;
 
     button_link.className = "neuroglancer-layer-group-viewer-context-menu-button-element"
+
+    //event handler that opens submission menu
     button_link.addEventListener("click", (event: MouseEvent) => {
 
-      // const coords = this.viewer.navigationState.position.value;
-      // let coordsString = ""
-      // coords.forEach(coord => {
-      //   coordsString += Math.round(coord) + ","
-      // });
-      // coordsString = coordsString.slice(0,-1);
-
-      // const url = linkStart + "location=" + coordsString + "&valid_id=" + segmentIDString;
-      // window.open(url, '_blank');
       let menu = this.makeSubmissionMenu(this, parent, segmentIDString, menuType, makeMenuSections, makeSubmitableContent);
       menu.show(<MouseEvent>{clientX: event.clientX - 200, clientY: event.clientY});
 
     });
 
-    
-
-
-    // const link = document.createElement('a');
-    // link.href = linkStart + "location=" + coordsString + "&valid_id=" + segmentIDString;
-    // link.text = linkMessage;
-    // link.target = "_blank";
     button_holder.appendChild(button_link);
     return button_holder;
   }
 
+  //create bulb's pop up menu
   makeMenu(parent: HTMLElement, segmentIDString: string): ContextMenu {
 
     let contextMenu : ContextMenu;
+    //use existing menu unless it doesn't exist
     if(this.statuses[segmentIDString]["menu"] === null) {
       contextMenu = new ContextMenu(parent);
       this.statuses[segmentIDString]["menu"] = contextMenu;
@@ -408,6 +390,7 @@ export class LightBulbService {
     menu.classList.add(
         'neuroglancer-layer-group-viewer-context-menu', 'nge_lbmenu');
 
+    //functions for parsing json response and simplifying to a choice between strings
     const parseCompletion = function(response : any) : String {
       if(response["valid"]["0"] === "t" && response["proofread"]["0"] === "t") {
         return "proofread"
@@ -422,6 +405,7 @@ export class LightBulbService {
       return "not identified"
     }
 
+    //populate menus contents
     menu.append(
         br(),
         this.generateSection("Cell Identification",segmentIDString, 'middleauth+' + this.dataset_url + 'cell_identification?filter_by=root_id&as_json=1&ignore_bad_ids=True&filter_string=',parseIdentification),
@@ -437,7 +421,9 @@ export class LightBulbService {
     return contextMenu;
   }
 
-
+  //create text content of identification submission menu
+  //either uses hard coded placeholder or links to a guide if 
+  //a guide is provided in the services /info json
   generateIdentificationSection(self : LightBulbService) : HTMLDivElement{
     const text_holder = document.createElement('div');
     const title_div = document.createElement('div');
@@ -454,12 +440,13 @@ export class LightBulbService {
               + "\nExample 1: putative giant fiber neuron, giant fibre neuron (Power 1948), GF,"
               + " GFN.\nExample 2: X9238J (new cell type named in ongoing Smith lab project)";
 
-    const alternate_content_str = "Enter the name of this cell and press submit.\nFor more information on how to submit"
+    const alternate_content_str = "Press submit to enter the identification of the cell.\nFor more information on how to submit"
               + " cell identification, please review the guide:";
 
     
 
     (async () => {
+      //if guide exists, link to it, else keep placeholder
       const betterContent = await self.getFromInfoJson("cell_identification_help");
       if(betterContent != null) {
         content_body.innerHTML = "";
@@ -474,22 +461,17 @@ export class LightBulbService {
       }
     })();
     self.generateSubmissionSectionHTML(content_str, content_body);
-
-    // text_holder.appendChild(title_div).appendChild(content_body);
+    
     text_holder.appendChild(title_div);
     text_holder.appendChild(content_body);
     return text_holder;
   }
 
+  //create button in identification submission menu that links to the submission page of the service
   generateIdentificationButtons(self : LightBulbService, parent : ContextMenu, segmentIDString : string) : HTMLDivElement{
     const content = document.createElement('div')
     const button_holder = document.createElement('div');
     button_holder.style.display = "flex";
-
-    // const text_box = document.createElement('textarea');
-    // text_box.style.width = "480px";
-    // text_box.style.height = "120px";
-    // content.appendChild(text_box);
 
     const button_submit = document.createElement('button');
     const button_cancel = document.createElement('button');
@@ -500,6 +482,8 @@ export class LightBulbService {
     button_cancel.style.backgroundColor = "rgb(15 177 139)";
 
     button_submit.className = "neuroglancer-layer-group-viewer-context-menu-button-element"
+
+    //link to service
     button_submit.addEventListener("click", () => {
 
         const coords = self.viewer.navigationState.position.value;
@@ -509,8 +493,7 @@ export class LightBulbService {
         });
         coordsString = coordsString.slice(0,-1);
   
-        const linkStart = "https://cave.fanc-fly.com/neurons/api/v1/datastack/brain_and_nerve_cord/submit_cell_identification?";
-        const url = linkStart + "location=" + coordsString + "&valid_id=" + segmentIDString;
+        const url = self.dataset_url + "submit_cell_identification?location=" + coordsString + "&valid_id=" + segmentIDString;
         window.open(url, '_blank');
     });
 
@@ -527,7 +510,9 @@ export class LightBulbService {
     return content;
   }
 
-
+  //create text content of proofreading submission menu
+  //either uses hard coded placeholder or links to a guide if 
+  //a guide is provided in the services /info json
   generateProofreadingSection(self : LightBulbService) : HTMLDivElement{
     const text_holder = document.createElement('div');
     const title_div = document.createElement('div');
@@ -539,7 +524,7 @@ export class LightBulbService {
               + "backbone?\n - 2: Has each backbone been examined or proofread, "
               + "showing no remaining obvious truncations or accidental mergers?";
 
-    const alternate_content_str = "Before marking a cell as complete, make sure each backbone has been thoroughly examined\n for more information, please review the guide:"
+    const alternate_content_str = "Before marking a cell as complete, make sure each backbone has been thoroughly examined.\nFor more information, please review the guide:"
 
           
     const content_body = document.createElement('form');
@@ -548,6 +533,7 @@ export class LightBulbService {
 
     (async () => {
       const betterContent = await self.getFromInfoJson("proofreading_help");
+      //if guide exists, use it instead of hardcoded string
       if(betterContent != null) {
         content_body.innerHTML = "";
         self.generateSubmissionSectionHTML(alternate_content_str, content_body);
@@ -569,6 +555,8 @@ export class LightBulbService {
     return text_holder;
   }
 
+  
+  //create button in proofreading submission menu that links to the submission page of the service
   generateProofreadingButtons(self : LightBulbService, parent : ContextMenu, segmentIDString : string) : HTMLDivElement{
     const button_holder = document.createElement('div');
     button_holder.style.display = "flex";
@@ -581,6 +569,7 @@ export class LightBulbService {
     button_cancel.textContent = "cancel";
     button_cancel.style.backgroundColor = "rgb(15 177 139)";
 
+    //link to service
     button_submit.className = "neuroglancer-layer-group-viewer-context-menu-button-element"
     button_submit.addEventListener("click", () => {
       const coords = self.viewer.navigationState.position.value;
@@ -590,8 +579,7 @@ export class LightBulbService {
         });
         coordsString = coordsString.slice(0,-1);
   
-        const linkStart = "https://cave.fanc-fly.com/neurons/api/v1/datastack/brain_and_nerve_cord/mark_completion?";
-        const url = linkStart + "location=" + coordsString + "&valid_id=" + segmentIDString;
+        const url = self.dataset_url + "mark_completion?location=" + coordsString + "&valid_id=" + segmentIDString;
         window.open(url, '_blank');
     });
 
@@ -606,6 +594,7 @@ export class LightBulbService {
     return button_holder;
   }
 
+  //given a string, split it into multiple paragraph elements via the \n character
   generateSubmissionSectionHTML(content : string, content_body : HTMLFormElement) : HTMLFormElement{
 
     let nextLine = -1;
@@ -629,13 +618,15 @@ export class LightBulbService {
     return content_body
   }
 
+  //create submission menu, and populate it for either proofreading or cell identification services
   makeSubmissionMenu(self : LightBulbService, parent: HTMLElement, segmentIDString : string, menuType : string, makeSection : Function, createSubmissionContent: Function) : ContextMenu{
-    console.log("STATUS: SID" + segmentIDString);
 
     let contextMenu : ContextMenu;
     if(menuType !== "proofreading_menu" && menuType !== "identification_menu") {
       throw new Error("this menu does not exist and cannot be created");
     }
+
+    //use existing menu if possible
     if(this.statuses[segmentIDString][menuType] === null) {
       contextMenu = new ContextMenu(parent);
       this.statuses[segmentIDString][menuType] = contextMenu;
@@ -650,6 +641,7 @@ export class LightBulbService {
     menu.classList.add(
         'neuroglancer-layer-group-viewer-context-menu', 'nge_lbmenu');
 
+    //populate menu with content
     menu.append(
         br(),
         makeSection(self),
@@ -660,28 +652,9 @@ export class LightBulbService {
 
     return contextMenu;
   }
-
-  // async isCoordInRoot(rootID : string): Promise<Boolean> {
-  //   const source = Uint64.parseString(rootID);
-  //   const mLayer = this.viewer.selectedLayer.layer;
-  //   if (mLayer == null) return false;
-  //   const layer = <SegmentationUserLayerWithGraph>mLayer.layer;
-  //   const {viewer} = this;
-  
-  //   const selection = layer.getValueAt(
-  //       viewer.navigationState.position.spatialCoordinates,
-  //       new MouseSelectionState());
-  
-  //   // get root of supervoxel
-  //   const response = await authFetch(`${layer.chunkedGraphUrl}/node/${
-  //       String(selection)}/root?int64_as_str=1`);
-  //   const jsonResp = await response.json();
-  //   const root_id = Uint64.parseString(jsonResp['root_id']);
-  //   // compare this root id with the one that initiated the check
-  //   return !Uint64.compare(source, root_id);
-  // }
 }
 
+//"inject" service into neuroglancer
 export function liveNeuroglancerInjection(lightbulb : LightBulbService) {
   const watchNode = document.querySelector('#content');
   if (!watchNode) {
