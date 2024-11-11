@@ -476,7 +476,7 @@ export class LightBulbService {
     const button_submit = document.createElement('button');
     const button_cancel = document.createElement('button');
 
-    button_submit.textContent = "submit";
+    button_submit.textContent = "continue";
     button_submit.style.backgroundColor = "rgb(15 177 139)";
     button_cancel.textContent = "cancel";
     button_cancel.style.backgroundColor = "rgb(15 177 139)";
@@ -520,7 +520,7 @@ export class LightBulbService {
     title_div.textContent = "Mark Complete";
 
     const content_str = "To mark proofreading of this cell as complete:"
-              +"\n - 1: Are the crosshairs centered inside a distinctive"
+              +"\n - 1: Are the crosshairs centered inside a distinctive "
               + "backbone?\n - 2: Has each backbone been examined or proofread, "
               + "showing no remaining obvious truncations or accidental mergers?";
 
@@ -564,7 +564,7 @@ export class LightBulbService {
     const button_submit = document.createElement('button');
     const button_cancel = document.createElement('button');
 
-    button_submit.textContent = "submit";
+    button_submit.textContent = "continue";
     button_submit.style.backgroundColor = "rgb(15 177 139)";
     button_cancel.textContent = "cancel";
     button_cancel.style.backgroundColor = "rgb(15 177 139)";
