@@ -9,23 +9,23 @@
   }
 
   .bulb.green {
-    fill: green;
+    fill: #2ecc71;
   }
 
   .bulb.yellow {
-    fill: yellow;
+    fill: #e6c760;
   }
 
   .bulb.purple {
-    fill: purple;
+    fill: #6f3ba3;
   }
 
   .bulb.red {
-    fill: red;
+    fill: #f78aa8;
   }
 
   .bulb.gray {
-    fill: gray;
+    fill: #eeeeee;
   }
 
   .lightbulb {
