@@ -222,6 +222,12 @@ export const useVolumesStore = defineStore("volumes", () => {
     );
 
     for (const [key, value] of Object.entries(response as any)) {
+      if (CONFIG && CONFIG.volumes_filter && CONFIG.volumes_filter.length > 0) {
+        if (!CONFIG.volumes_filter.includes(key)) {
+          continue
+        }
+      }
+
       volumes.value.push({
         name: key,
         description: (value as any).description,
