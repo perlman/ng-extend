@@ -3,7 +3,7 @@ import { setupDefaultViewer } from "neuroglancer/unstable/ui/default_viewer_setu
 import { createPinia } from "pinia";
 import { createApp } from "vue";
 import App from "#src/components/App.vue";
-import { useLayersStore } from "#src/store.js";
+import { useLayersStore, useVolumesStore } from "#src/store.js";
 import { LightBulbService, liveNeuroglancerInjection } from '#src/widgets/lightbulb_service.js';
 
 function mergeTopBars() {
@@ -23,6 +23,8 @@ window.addEventListener("DOMContentLoaded", () => {
   app.mount("#app");
   const viewer = setupDefaultViewer();
   initializeWithViewer(viewer);
+  const { loadVolumes } = useVolumesStore();
+  loadVolumes(viewer);
   mergeTopBars();
 
   const layerStore = useLayersStore();

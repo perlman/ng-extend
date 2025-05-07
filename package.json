@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "json-bigint": "^1.0.0",
-    "neuroglancer": "github:seung-lab/neuroglancer#cj-spelunker-ng-extend-v3",
+    "neuroglancer": "github:seung-lab/neuroglancer#4a27ed47ebea434f1804cffbb60a4fe5bd471b66",
     "pinia": "^2.1.7",
     "svg-inline-loader": "^0.8.2",
     "vue": "^3.4.21"

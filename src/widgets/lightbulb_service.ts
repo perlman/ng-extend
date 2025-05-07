@@ -1,6 +1,6 @@
 import { ContextMenu } from 'neuroglancer/unstable/ui/context_menu.js';
 import { cancellableFetchSpecialOk, parseSpecialUrl } from 'neuroglancer/unstable/util/special_protocol_request.js';
-import { defaultCredentialsManager } from "neuroglancer/unstable/credentials_provider/default_manager.js";
+import { getDefaultCredentialsManager } from "neuroglancer/unstable/credentials_provider/default_manager.js";
 import { makeIcon } from 'neuroglancer/unstable/widget/icon.js';
 import JSONbigInt from 'json-bigint';
 
@@ -17,6 +17,8 @@ const JSONBS = JSONbigInt({storeAsString: true});
 function responseJsonString(response: Response): Promise<any> {
   return response.text()
 }
+
+const defaultCredentialsManager = getDefaultCredentialsManager();
 
 
 export class LightBulbService {
@@ -55,11 +57,11 @@ export class LightBulbService {
     })();
   }
 
-  //given the name of the dataset, returns a part of the url necissary to use the service
+  //given the name of the dataset, returns a part of the url necessary to use the service
   async findDatasetURL(dataset_name : string) : Promise<string>{
 
     const dataset_name_query_url = "https://global.daf-apis.com/info/api/v2/ngl_info";
-    
+
     const {url: parsedUrl, credentialsProvider} = parseSpecialUrl(
       'middleauth+'+ dataset_name_query_url,
       defaultCredentialsManager,

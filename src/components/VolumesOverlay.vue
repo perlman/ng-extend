@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
 import ModalOverlay from "#src/components/ModalOverlay.vue";
-import { ref, Ref, computed } from 'vue';
+import { ref, Ref, computed, onMounted, onUnmounted } from 'vue';
 import { useVolumesStore, useLayersStore } from '#src/store.js';
 const volumeStore = useVolumesStore();
 const layerStore = useLayersStore();
@@ -33,8 +32,6 @@ const activeVolumes = computed(() => {
   }
   return res;
 });
-
-storeToRefs;
 
 const volumes = volumeStore.volumes;
 
@@ -102,20 +99,38 @@ const canConfirm = computed(() => {
 function confirmSelection() {
   if (canConfirm.value) {
     const layers = [selectedImageLayer.value, selectedSegmentationLayer.value].map(x => {
-      const { source, ngl_image_name, name, type } = x!;
+      const { source, ngl_image_name, name, type, description } = x!;
 
       let sourceAsArray = Array.isArray(source) ? source : [source];
       return {
         name: ngl_image_name || name,
         source: sourceAsArray,
         type,
-        tab: 'source'
+        tab: 'source',
+        description,
       }
     });
     selectLayers(layers);
     emit('hide');
   }
 }
+
+const keyupEventlistener: (this: Window, ev: KeyboardEvent) => any = (evt) => {
+  if (evt.key === "Enter") {
+    confirmSelection();
+  }
+  if (evt.key === "Escape") {
+    emit('hide');
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("keyup", keyupEventlistener);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keyup", keyupEventlistener);
+});
 </script>
 
 <template>
